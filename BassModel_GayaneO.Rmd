@@ -1,0 +1,140 @@
+---
+title: "Bass Model for Dyson Airstraint"
+author: "Gayane Ohanjanyan"
+date: "`r Sys.Date()`"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = F, fig.width=10, fig.height=5)
+library("readxl")
+library(tidyverse)
+library(ggplot2)
+library(diffusion)
+library(gridExtra)
+```
+
+# Hair Dryer and Dyson Airstraint  
+
+In 2023, Dyson Airstraint experienced a remarkable boost in the market, capturing the attention of many customers and reaching notable successes in the beauty industry. A similar innovation occurred in 1920 when household hair dryers first appeared in the market.   
+These two products have lightened the burden of drying and straightening the hair. Their shared mission is to target predominantly female customers. Additionally, the Dyson Airstraint and historical hair dryers represent a departure from conventional methods, introducing technological advancements to enhance user experiences. Together, these innovations reflect the enduring pursuit of creating products that simplify and elevate how individuals care for and style their hair across different eras.  
+
+
+```{r, warning=FALSE, message=FALSE}
+df <- read_excel("household-appliances_small-appliances_hair-dryers_worldwide_USD_en.xlsx", 
+                 sheet = "Volume")[4, 1:12]
+
+df <- tibble(
+  Units_Sold = as.numeric(df)
+)
+
+df <- df %>% drop_na()%>% 
+  mutate(Year = seq(2018, 2028))
+```
+# Time Series of Hair Dryer
+
+
+```{r}
+ggplot(data = df, mapping = aes(x = factor(Year), y = Units_Sold)) +
+  geom_bar(stat = "identity") + 
+  labs(
+    x = "Year",
+    y = "Units Sold (millions)",
+    title = "Units Sold of Hair Dryers Over Years"
+  ) + theme_light()
+```
+Analyzing hair dryer time series data enables us to approximate the Dyson Airstraint in Bass model, providing valuable insights into product performance and user preferences. The data allows us to estimate the rate of adoption and the impact of innovation on the hair dryer market. Leveraging time series data helps in identifying peak demand periods and the overall market dynamics. The Dyson Air Strengthening model's success can be reflected in the patterns observed in the hair dryer time series data, shedding light on the factors influencing its adoption and market penetration.
+
+# Bass Model Parameters
+```{r}
+diff_m = diffusion(df$Units_Sold) 
+p=round(diff_m$w,4)[1] 
+q=round(diff_m$w,4)[2] 
+m=round(diff_m$w,4)[3] 
+diff_m
+t <- c(1:11)
+```
+
+```{r}
+bass.f <- function(t, p, q) {
+  ((p + q)^2 / p) * exp(-(p + q) * t) / (1 + (q / p) * exp(-(p + q) * t))^2
+}
+
+bass.F <- function(t, p, q){ 
+  (1-exp(-(p+q)*t))/(1+(q/p)*exp(-(p+q)*t)) 
+  }
+```
+
+
+# Predictions of the diffusion of the Dyson Airstraint
+
+```{r}
+df$Accumulated_Predicted_Sales <- bass.F(t, p, q) * m
+df$Predicted_Sales <- bass.f(t, p, q) * m
+
+
+pred_sales <- ggplot(data = df) +
+  geom_bar(mapping = aes(x=factor(Year), y=Predicted_Sales/m), stat = "identity") + 
+  labs(
+    x = "Year",
+    y = "Units Sold (millions)",
+    title = "Units Sold of Dyson Airstraint Over Years"
+  ) + theme_light()
+
+accum_pred_sales <- ggplot(data = df) +
+  geom_bar(mapping = aes(x=factor(Year), y=Accumulated_Predicted_Sales/m), stat = "identity") + 
+  labs(
+    x = "Year",
+    y = "Units Sold (millions)",
+    title = "Accumulated Units Sold of Dyson Airstraintc Over Years"
+  ) + theme_light()
+
+
+grid.arrange(pred_sales, accum_pred_sales,  ncol = 2)
+```
+The left bar plot depicts the fraction of the total market that adopts Dysen Airstraint at time t. The right plot shows the fraction of the total market that has adopted the product up to and including time t. As we can see the number of sales has a positive dynamic over time. 
+
+## Prediction of the period when sales reached to their peak  
+
+By using the results of the diffusion matrix and plugging the values of the innovation and imitation rates to the formula \[ t = \frac{\ln\left(\frac{q}{p}\right)}{p+q} \] we will get the predicted time index when highest sales occurred.
+
+```{r}
+predicted= log(q/p)/(p+q) 
+actual=which.max(df$Units_Sold)
+
+sales_peak <- data.frame(x = c("Predicted Period", "Actual Period"), y = c(predicted, actual))
+
+ggplot(data = sales_peak, aes(x = y, y = x)) + 
+  geom_bar(stat = "identity") +
+  geom_label(aes(label = round(y, 2)), vjust = 0.5, nudge_x = 0.5, size = 4, fill = "lightgrey") +  
+  theme_light() +
+  theme(axis.text.x = element_blank()) +
+  labs(title = "Predicted and Actual Periods of Sales Peak", x = "", y = "")
+```
+According to the plot, the predicted time index of the highest sales is 8.65. In reality, the expected time index of sales peaks is 11. Therefore, the estimated sales boost of the Dysen Airstraint will happen around the 8th time index.
+
+
+# Estimation of number of adopters by period
+```{r}
+ggplot(data = df) +
+  geom_bar(mapping = aes(x=factor(Year), y=Units_Sold), stat = "identity") + 
+  geom_point(mapping = aes(x=factor(Year), y=Predicted_Sales), color = 'darkred', size = 3) + 
+  geom_line(mapping = aes(x=factor(Year), y=Predicted_Sales), group = 1, color = "darkred") + 
+  labs(
+    x = "Year",
+    y = "Units Sold (millions)",
+    title = "Units Sold of Hair Dryers Over Years"
+  ) + theme_light() 
+```
+The bar plot shows the number of hair dryers sold over time. The red line shows the estimated number of Dysen Airstraints sold each period. The estimation is done by multiplying the market potential(M) by the fraction of the total market that adopts the product at time t, which is 10050.25 derived from the diffusion matrix.
+
+
+```{r}
+cat("The total number of predicted sales of Dysen Airstraints is", sum(df$Predicted_Sales))
+```
+
+
+## References  
+
+https://www.statista.com/outlook/cmo/household-appliances/small-appliances/hair-dryers/worldwide
+
