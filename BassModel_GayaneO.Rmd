@@ -20,9 +20,11 @@ In 2023, Dyson Airstraint experienced a remarkable boost in the market, capturin
 These two products have lightened the burden of drying and straightening the hair. Their shared mission is to target predominantly female customers. Additionally, the Dyson Airstraint and historical hair dryers represent a departure from conventional methods, introducing technological advancements to enhance user experiences. Together, these innovations reflect the enduring pursuit of creating products that simplify and elevate how individuals care for and style their hair across different eras.  
 
 
+
 ```{r, warning=FALSE, message=FALSE}
-df <- read_excel("household-appliances_small-appliances_hair-dryers_worldwide_USD_en.xlsx", 
-                 sheet = "Volume")[4, 1:12]
+file_name <- "household-appliances_small-appliances_hair-dryers_worldwide_USD_en.xlsx"
+sheet_name = "Volume"
+df <- read_excel(file_name, sheet = sheet_name)[4, 1:12]
 
 df <- tibble(
   Units_Sold = as.numeric(df)
